@@ -7,7 +7,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
 
 concurrency:
   group: claude-pr-review-${{ github.event.pull_request.number }}
@@ -23,7 +22,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
