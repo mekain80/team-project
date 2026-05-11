@@ -1,0 +1,61 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: claude-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review PR with Claude
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Please review this pull request.
+            Focus on:
+            - Correctness, runtime bugs, and edge cases
+            - Backend FastAPI/PostgreSQL changes under backend/
+            - Frontend React/Vite changes under frontend/
+            - Docker and environment changes
+            - Security issues such as hardcoded secrets, unsafe input handling, SQL injection, XSS, and auth mistakes
+            - Missing or weak tests for changed behavior
+
+            Output rules:
+            - Write review feedback in Korean.
+            - Use concise, actionable comments.
+            - Prefer inline comments for specific code issues.
+            - Post one top-level summary comment when useful.
+            - Do not edit files or create commits.
+            - Do not comment when there are no meaningful findings except for one short approval-style summary.
+
+            Note: The PR branch is already checked out in the current working directory.
+            Use `gh pr view`, `gh pr diff`, and `gh pr comment` for GitHub PR context and comments.
+            Use `mcp__github_inline_comment__create_inline_comment` with `confirmed: true` for inline code comments.
+          claude_args: |
+            --max-turns 6
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
